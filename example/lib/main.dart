@@ -122,6 +122,7 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
           CustomRangeCalendar(
             weekDaysColor: Colors.brown,
+            calendarRangeViewType: CalendarRangeViewType.singleCalendar,
             onApply: (start, end, timeAgo) {
               Navigator.pop(context);
               //mStartDate = start;

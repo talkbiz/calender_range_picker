@@ -3,6 +3,8 @@ import 'package:calender_range_picker/src/custom_calendar.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+enum CalendarRangeViewType { doubleCalendar, singleCalendar }
+
 class CustomRangeCalendar extends StatefulWidget {
   final Function(DateTime? start, DateTime? end, String? timeRangeInText)?
       onApply;
@@ -28,6 +30,8 @@ class CustomRangeCalendar extends StatefulWidget {
   /// Custom Date range e.g [01/Mar/2024 12:00 AM - 05/Mar/2024 12:00 AM]
   final DateFormat? customDateRangeFormatter;
 
+  final CalendarRangeViewType calendarRangeViewType;
+
   const CustomRangeCalendar({
     super.key,
     this.onApply,
@@ -38,6 +42,7 @@ class CustomRangeCalendar extends StatefulWidget {
     this.backgroundColor,
     this.showTime = true,
     this.customDateRangeFormatter,
+    this.calendarRangeViewType = CalendarRangeViewType.doubleCalendar,
   });
 
   @override
@@ -63,8 +68,15 @@ class _CustomRangeCalendarState extends State<CustomRangeCalendar> {
 
   @override
   void initState() {
-    // Add past month
-    _firstCalender = TimeUtil.getDateXMonthsAgo(_currentDate, 1);
+    if (widget.calendarRangeViewType != CalendarRangeViewType.doubleCalendar) {
+      // If CalendarType is not double, then enable secondCalender previous button
+      DateTime oneYearAgo = _currentDate.subtract(const Duration(days: 365));
+      _firstCalender = oneYearAgo;
+    } else {
+      // Add past month
+      _firstCalender = TimeUtil.getDateXMonthsAgo(_currentDate, 1);
+    }
+
     // Add current month
     _secondCalender = _currentDate;
     super.initState();
@@ -82,6 +94,9 @@ class _CustomRangeCalendarState extends State<CustomRangeCalendar> {
   void _onDaySelected(DateTime selectedDay) {
     // This is triggered when a day is clicked
     // on the calendar month
+
+    // Return, if selectedDay is after current Date
+    if (selectedDay.isAfter(_currentDate)) return;
 
     if (selectRangeStart == null) {
       // StartDate is null, add a newly selected date
@@ -106,166 +121,174 @@ class _CustomRangeCalendarState extends State<CustomRangeCalendar> {
 
   @override
   Widget build(BuildContext context) {
+    bool isDoubleCalendar =
+        widget.calendarRangeViewType == CalendarRangeViewType.doubleCalendar;
+
     return Dialog(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
       ),
-      child: Container(
-        decoration: BoxDecoration(
-          color: widget.backgroundColor ?? AppColors.white,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        padding: const EdgeInsets.all(16),
-        width: 730,
-        child: Card(
-          elevation: 0,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Wrap(
-                    children: [
-                      CustomCalendar(
-                        currentDate: _firstCalender!,
-                        selectRangeStart: selectRangeStart,
-                        selectRangeEnd: selectRangeEnd,
-                        onArrowLeft: () {
-                          // Get one year ago from today
-                          DateTime oneYearAgo =
-                              _currentDate.subtract(const Duration(days: 365));
-
-                          // Get previous month from today at [00:00 AM]
-                          DateTime prevMonth =
-                              TimeUtil.getDateXMonthsAgo(_firstCalender!, 1);
-
-                          // You can't click previous month past 1 year from today
-                          if (!prevMonth.isAfter(oneYearAgo)) return;
-
-                          // Add previous month to the first calender
-                          _firstCalender = prevMonth;
-                          setState(() {});
-                        },
-                        onArrowRight: () {
-                          // Get next month from today at [00:00 AM]
-                          DateTime nextMonth =
-                              TimeUtil.getDateXMonthsNext(_firstCalender!, 1);
-
-                          // You can't click next month from first calender
-                          // if it is the same month with the second calendar
-                          if (TimeUtil.isMonthEqual(
-                              nextMonth, _secondCalender!)) {
-                            return;
-                          }
-
-                          // Add next month to the first calender
-                          _firstCalender = nextMonth;
-                          setState(() {});
-                        },
-                        onTap: _onDaySelected,
-                        markerColor: widget.markerColor,
-                        rangeColor: widget.rangeColor,
-                        weekDaysColor: widget.weekDaysColor,
-                      ),
-                      sizedBoxHor15,
-                      CustomCalendar(
-                        currentDate: _secondCalender!,
-                        selectRangeStart: selectRangeStart,
-                        selectRangeEnd: selectRangeEnd,
-                        onArrowLeft: () {
-                          // Get previous month from today at [00:00 AM]
-                          DateTime prevMonth =
-                              TimeUtil.getDateXMonthsAgo(_secondCalender!, 1);
-
-                          // You can't click previous month from second calender
-                          // if it is the same month with the first calendar
-                          if (TimeUtil.isMonthEqual(
-                              prevMonth, _firstCalender!)) {
-                            return;
-                          }
-
-                          // Add previous month to the second calender
-                          _secondCalender = prevMonth;
-                          setState(() {});
-                        },
-                        onArrowRight: () {
-                          // Get next month from today at [00:00 AM]
-                          DateTime nextMonth =
-                              TimeUtil.getDateXMonthsNext(_secondCalender!, 1);
-
-                          // You can't click next month past this current month
-                          if (nextMonth.isAfter(_currentDate)) return;
-
-                          // Add next month to the second calender
-                          _secondCalender = nextMonth;
-                          setState(() {});
-                        },
-                        onTap: _onDaySelected,
-                        markerColor: widget.markerColor,
-                        rangeColor: widget.rangeColor,
-                        weekDaysColor: widget.weekDaysColor,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(
-                    height: 320,
-                    width: 20,
-                    child: VerticalDivider(),
-                  ),
-                  _CustomRange(
-                    currentDate: _currentDate,
-                    timeRangeInText: timeRangeInText,
-                    rangeColor: widget.rangeColor,
-                    markerColor: widget.markerColor,
-                    dateRange: (start, end, time) {
-                      selectRangeStart = start;
-                      selectRangeEnd = end;
-                      timeRangeInText = time;
-                      setState(() {});
-                    },
-                  ),
-                ],
-              ),
-              const Divider(),
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Container(
+          decoration: BoxDecoration(
+            color: widget.backgroundColor ?? AppColors.white,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          padding: const EdgeInsets.all(16),
+          width: isDoubleCalendar ? 730 : 480,
+          child: Card(
+            elevation: 0,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Wrap(
                       children: [
-                        TextWidget(selectRangeStart == null
-                            ? ''
-                            : _getDateString(selectRangeStart)),
-                        TextWidget(selectRangeEnd == null
-                            ? ''
-                            : "  -  ${_getDateString(selectRangeEnd)}"),
+                        if (isDoubleCalendar) ...[
+                          CustomCalendar(
+                            currentDate: _firstCalender!,
+                            selectRangeStart: selectRangeStart,
+                            selectRangeEnd: selectRangeEnd,
+                            onArrowLeft: () {
+                              // Get one year ago from today
+                              DateTime oneYearAgo = _currentDate
+                                  .subtract(const Duration(days: 365));
+
+                              // Get previous month from today at [00:00 AM]
+                              DateTime prevMonth = TimeUtil.getDateXMonthsAgo(
+                                  _firstCalender!, 1);
+
+                              // You can't click previous month past 1 year from today
+                              if (!prevMonth.isAfter(oneYearAgo)) return;
+
+                              // Add previous month to the first calender
+                              _firstCalender = prevMonth;
+                              setState(() {});
+                            },
+                            onArrowRight: () {
+                              // Get next month from today at [00:00 AM]
+                              DateTime nextMonth = TimeUtil.getDateXMonthsNext(
+                                  _firstCalender!, 1);
+
+                              // You can't click next month from first calender
+                              // if it is the same month with the second calendar
+                              if (TimeUtil.isMonthEqual(
+                                  nextMonth, _secondCalender!)) {
+                                return;
+                              }
+
+                              // Add next month to the first calender
+                              _firstCalender = nextMonth;
+                              setState(() {});
+                            },
+                            onTap: _onDaySelected,
+                            markerColor: widget.markerColor,
+                            rangeColor: widget.rangeColor,
+                            weekDaysColor: widget.weekDaysColor,
+                          ),
+                          sizedBoxHor15,
+                        ],
+                        CustomCalendar(
+                          currentDate: _secondCalender!,
+                          selectRangeStart: selectRangeStart,
+                          selectRangeEnd: selectRangeEnd,
+                          onArrowLeft: () {
+                            // Get previous month from today at [00:00 AM]
+                            DateTime prevMonth =
+                                TimeUtil.getDateXMonthsAgo(_secondCalender!, 1);
+
+                            // You can't click previous month from second calender
+                            // if it is the same month with the first calendar
+                            if (TimeUtil.isMonthEqual(
+                                prevMonth, _firstCalender!)) {
+                              return;
+                            }
+
+                            // Add previous month to the second calender
+                            _secondCalender = prevMonth;
+                            setState(() {});
+                          },
+                          onArrowRight: () {
+                            // Get next month from today at [00:00 AM]
+                            DateTime nextMonth = TimeUtil.getDateXMonthsNext(
+                                _secondCalender!, 1);
+
+                            // You can't click next month past this current month
+                            if (nextMonth.isAfter(_currentDate)) return;
+
+                            // Add next month to the second calender
+                            _secondCalender = nextMonth;
+                            setState(() {});
+                          },
+                          onTap: _onDaySelected,
+                          markerColor: widget.markerColor,
+                          rangeColor: widget.rangeColor,
+                          weekDaysColor: widget.weekDaysColor,
+                        ),
                       ],
                     ),
-                    TextButton(
-                      style: TextButton.styleFrom(
-                        minimumSize: const Size(80, 45),
-                      ),
-                      onPressed:
-                          (selectRangeStart != null && selectRangeEnd != null)
-                              ? () {
-                                  widget.onApply!(selectRangeStart,
-                                      selectRangeEnd, timeRangeInText);
-                                }
-                              : null,
-                      child: TextWidget(
-                        "Apply",
-                        color:
-                            (selectRangeStart != null && selectRangeEnd != null)
-                                ? widget.buttonColor
-                                : widget.buttonColor?.withOpacity(0.1),
-                      ),
-                    )
+                    const SizedBox(
+                      height: 320,
+                      width: 20,
+                      child: VerticalDivider(),
+                    ),
+                    _CustomRange(
+                      currentDate: _currentDate,
+                      timeRangeInText: timeRangeInText,
+                      rangeColor: widget.rangeColor,
+                      markerColor: widget.markerColor,
+                      dateRange: (start, end, time) {
+                        selectRangeStart = start;
+                        selectRangeEnd = end;
+                        timeRangeInText = time;
+                        setState(() {});
+                      },
+                    ),
                   ],
                 ),
-              ),
-            ],
+                const Divider(height: 0),
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Wrap(
+                        children: [
+                          TextWidget(selectRangeStart == null
+                              ? ''
+                              : _getDateString(selectRangeStart)),
+                          TextWidget(selectRangeEnd == null
+                              ? ''
+                              : "  -  ${_getDateString(selectRangeEnd)}"),
+                        ],
+                      ),
+                      TextButton(
+                        style: TextButton.styleFrom(
+                          minimumSize: const Size(80, 45),
+                        ),
+                        onPressed:
+                            (selectRangeStart != null && selectRangeEnd != null)
+                                ? () {
+                                    widget.onApply!(selectRangeStart,
+                                        selectRangeEnd, timeRangeInText);
+                                  }
+                                : null,
+                        child: TextWidget(
+                          "Apply",
+                          color: (selectRangeStart != null &&
+                                  selectRangeEnd != null)
+                              ? widget.buttonColor
+                              : widget.buttonColor?.withOpacity(0.1),
+                        ),
+                      )
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
